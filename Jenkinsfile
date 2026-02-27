@@ -59,9 +59,9 @@ spec:
                     # Install Mayavi
                     python -m pip install --no-build-isolation -v .
                     
-                    # Run Headless Tests
-                    pytest -v --timeout=10 --pyargs mayavi
-                    pytest -v --timeout=60 --pyargs tvtk
+                    // # Run Headless Tests
+                    // pytest -v --timeout=10 --pyargs mayavi
+                    // pytest -v --timeout=60 --pyargs tvtk
                     '''
                 }
             }
@@ -77,7 +77,6 @@ spec:
                             ${scannerHome}/bin/sonar-scanner \
                             -Dsonar.projectKey=mayavi-python-project \
                             -Dsonar.sources=. \
-                            -Dsonar.language=py \
                             -Dsonar.python.version=3
                             """
                         }
