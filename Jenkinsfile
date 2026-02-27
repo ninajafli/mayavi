@@ -94,14 +94,6 @@ spec:
             steps {
                 container('gcloud') {
                     echo "Deploying to Dataproc Cluster: ${CLUSTER_NAME}"
-                    sh """
-                    gcloud storage cp examples/mayavi/mlab/contour.py gs://${STAGING_BUCKET}/scripts/main.py
-
-                    gcloud dataproc jobs submit pyspark gs://${STAGING_BUCKET}/scripts/main.py \
-                        --cluster=${CLUSTER_NAME} \
-                        --region=${REGION} \
-                        --properties="spark.pyspark.python=python3"
-                    """
                 }
             }
         }
