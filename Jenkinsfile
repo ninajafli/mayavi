@@ -31,14 +31,6 @@ spec:
     }
 
     stages {
-        stage('Checkout') {
-            steps {
-                container('gcloud') {
-                    checkout scm
-                }
-            }
-        }
-
         stage('Install & Test') {
             steps {
                 container('gcloud') {
@@ -61,7 +53,8 @@ spec:
                     python3 -m venv .venv
                     . .venv/bin/activate
                     python -m pip install --upgrade pip setuptools wheel
-                    python -m pip install numpy "vtk<9.3" pillow pytest pytest-timeout traitsui
+                    python -m pip install --upgrade --force-reinstall "numpy<2"
+                    python -m pip install "vtk<9.3" pillow pytest pytest-timeout traitsui
                     
                     # Install Mayavi
                     python -m pip install --no-build-isolation -v .
