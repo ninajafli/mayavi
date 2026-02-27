@@ -46,7 +46,16 @@ spec:
                     set -eux
                     # Install build dependencies
                     apt-get update
-                    apt-get install -y python3-venv zip libgl1 libglu1-mesa libxt6
+                    apt-get install -y \
+                        python3-venv \
+                        zip \
+                        libgl1 \
+                        libglu1-mesa \
+                        libxt6 \
+                        libxrender1 \
+                        libxext6 \
+                        libfontconfig1 \
+                        libglib2.0-0
                     
                     # Setup Environment
                     python3 -m venv .venv
