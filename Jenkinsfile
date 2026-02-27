@@ -47,7 +47,8 @@ spec:
                         libxrender1 \
                         libxext6 \
                         libfontconfig1 \
-                        libglib2.0-0
+                        libglib2.0-0 \
+                        default-jre
                     
                     # Setup Environment
                     python3 -m venv .venv
