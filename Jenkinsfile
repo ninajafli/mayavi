@@ -18,8 +18,10 @@ pipeline {
             }
         }
         stage('Build & Package') {
-            echo 'Compiling project and building JAR...'
-            sh 'mvn clean package -DskipTests'
+            steps {
+                echo 'Compiling project and building JAR...'
+                sh 'mvn clean package -DskipTests'
+            }
         }
         stage('SonarQube Analysis') {
             steps {
