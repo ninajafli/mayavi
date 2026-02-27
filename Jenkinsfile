@@ -12,6 +12,7 @@ pipeline {
                 tty: true
             '''
     }
+    }
 
     environment {
         PROJECT_ID = "niyamaddin"
