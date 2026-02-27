@@ -3,10 +3,6 @@ pipeline {
         label 'jenkins-jenkins-agent'
     }
 
-    options {
-        timestamps()
-    }
-
     environment {
         PROJECT_ID = "niyamaddin"
         REGION = "us-central1"
