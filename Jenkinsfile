@@ -58,10 +58,6 @@ spec:
                     
                     # Install Mayavi
                     python -m pip install --no-build-isolation -v .
-                    
-                    // # Run Headless Tests
-                    // pytest -v --timeout=10 --pyargs mayavi
-                    // pytest -v --timeout=60 --pyargs tvtk
                     '''
                 }
             }
