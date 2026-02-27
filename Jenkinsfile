@@ -43,7 +43,7 @@ spec:
             steps {
                 container('gcloud') {
                     sh '''
-                    set -euxo pipefail
+                    set -eux
                     # Install build dependencies
                     apt-get update && apt-get install -y python3-venv zip
                     
