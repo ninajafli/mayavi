@@ -3,12 +3,20 @@ pipeline {
         label 'jenkins-jenkins-agent'
     }
 
+    options {
+        timestamps()
+    }
+
     environment {
         PROJECT_ID = "niyamaddin"
         REGION = "us-central1"
         CLUSTER_NAME = "automation-cluster"
         STAGING_BUCKET = "niyamaddin-dataproc-staging"
         SONAR_SERVER_NAME = "SonarQube"
+
+        PYTHONBUFFERED = '1'
+        ETS_TOOLKIT = 'null'
+        VTK_PARSER_VERBOSE = 'true'
     }
 
     stages {
@@ -17,10 +25,27 @@ pipeline {
                 checkout scm
             }
         }
-        stage('Build & Package') {
+        stage('Setup & Install') {
             steps {
-                echo 'Compiling project and building JAR...'
-                sh 'mvn clean package -DskipTests'
+                sh '''
+                set -euxo pipefail
+                python3 -m venv .venv
+                . .venv/bin/activate
+                python -m pip install --upgrade pip setuptools wheel
+                python -m pip install numpy "vtk<9.3" pillow pytest pytest-timeout traitsui
+                python -m pip install --no-build-isolation -v .
+                '''
+            }
+        }
+
+        stage('Run Tests') {
+            steps {
+                sh '''
+                set -euxo pipefail
+                . .venv/bin/activate
+                pytest -v --timeout=10 --pyargs mayavi
+                pytest -v --timeout=60 --pyargs tvtk
+                '''
             }
         }
         stage('SonarQube Analysis') {
@@ -30,9 +55,10 @@ pipeline {
                     withSonarQubeEnv("${SONAR_SERVER_NAME}") {
                         sh """
                         ${scannerHome}/bin/sonar-scanner \
-                        -Dsonar.projectKey=mayavi-project \
-                        -Dsonar.sources=src/main/java \
-                        -Dsonar.java.binaries=target/classes
+                        -Dsonar.projectKey=mayavi-python-project \
+                        -Dsonar.sources=. \
+                        -Dsonar.language=py \
+                        -Dsonar.python.version=3
                         """
                     }
                 }
@@ -45,33 +71,20 @@ pipeline {
                 }
             }
         }
-        stage('Upload Artifact') {
-            steps {
-                echo 'Uploading JAR to GCS Staging Bucket...'
-                sh "gcloud storage cp target/*.jar gs://${STAGING_BUCKET}/artifacts/mayavi.jar"
-            }
-        }
-
+    
         stage('Deploy to Hadoop') {
             steps {
-                echo "Submitting Spark job to cluster: ${CLUSTER_NAME}"
-                sh """
-                gcloud dataproc jobs submit spark \
-                    --cluster=${CLUSTER_NAME} \
-                    --region=${REGION} \
-                    --jars=gs://${STAGING_BUCKET}/artifacts/mayavi.jar \
-                    --class=com.example.MainClass \
-                    -- 1000
-                """
+                echo "Deploying to Dataproc Cluster: ${CLUSTER_NAME}"
             }
         }
+    
     }
     post {
         always {
             echo 'Pipeline execution finished'
         }
         success {
-            echo 'Project successfully analyzed and deployed to Hadoop'
+            echo 'CI/CD completed successfully'
         }
         failure {
             echo 'Pipeline failed'
