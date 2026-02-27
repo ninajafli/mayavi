@@ -1,6 +1,16 @@
 pipeline {
     agent {
-        label 'jenkins-jenkins-agent'
+        kubernetes {
+            yaml '''
+            apiVersion: v1
+            kind: Pod
+            spec:
+            containers:
+            - name: gcloud
+                image: google/cloud-sdk:slim
+                command: ["cat"]
+                tty: true
+            '''
     }
 
     environment {
@@ -23,29 +33,34 @@ pipeline {
         }
         stage('Setup & Install') {
             steps {
-                sh '''
-                set -euxo pipefail
-                python3 -m venv .venv
-                . .venv/bin/activate
-                python -m pip install --upgrade pip setuptools wheel
-                python -m pip install numpy "vtk<9.3" pillow pytest pytest-timeout traitsui
-                python -m pip install --no-build-isolation -v .
-                '''
+                container('gcloud') {
+                    sh '''
+                    set -euxo pipefail
+                    python3 -m venv .venv
+                    . .venv/bin/activate
+                    python -m pip install --upgrade pip setuptools wheel
+                    python -m pip install numpy "vtk<9.3" pillow pytest pytest-timeout traitsui
+                    python -m pip install --no-build-isolation -v .
+                    '''
+                }
             }
         }
 
         stage('Run Tests') {
             steps {
+                container('gcloud') {
                 sh '''
                 set -euxo pipefail
                 . .venv/bin/activate
                 pytest -v --timeout=10 --pyargs mayavi
                 pytest -v --timeout=60 --pyargs tvtk
                 '''
+                }
             }
         }
         stage('SonarQube Analysis') {
             steps {
+                container('gcloud') {
                 script {
                     def scannerHome = tool 'SonarScanner'
                     withSonarQubeEnv("${SONAR_SERVER_NAME}") {
@@ -57,6 +72,7 @@ pipeline {
                         -Dsonar.python.version=3
                         """
                     }
+                }
                 }
             }
         }
