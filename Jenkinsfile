@@ -6,59 +6,40 @@ apiVersion: v1
 kind: Pod
 spec:
   containers:
+  - name: python
+    image: python:3.11
+    command: ["sleep"]
+    args: ["99d"]
   - name: gcloud
     image: google/cloud-sdk:slim
-    command: ["cat"]
-    tty: true
+    command: ["sleep"]
+    args: ["99d"]
 '''
         }
     }
 
     environment {
-        // Project Specifics
-        PROJECT_ID         = "niyamaddin"
-        REGION             = "us-central1"
-        CLUSTER_NAME       = "automation-cluster"
-        STAGING_BUCKET     = "niyamaddin-dataproc-staging"
-        
-        // SonarQube Config
-        SONAR_SERVER_NAME  = "SonarQube" 
-        
-        // Python/Mayavi Config
-        PYTHONUNBUFFERED   = '1'
-        ETS_TOOLKIT        = 'null'
-        VTK_PARSER_VERBOSE = 'true'
+        PROJECT_ID = "niyamaddin"
+        REGION     = "us-central1"
+        CLUSTER    = "automation-cluster"
+        STAGING_BUCKET = "gs://niyamaddin-dataproc-staging"
     }
 
     stages {
-        stage('Install & Test') {
+        stage('Checkout') {
             steps {
-                container('gcloud') {
+                checkout scm
+            }
+        }
+
+        stage('Install & Test') {
+            container('python') {
+                script {
                     sh '''
-                    set -eux
-                    # Install build dependencies
-                    apt-get update
-                    apt-get install -y \
-                        python3-venv \
-                        zip \
-                        libgl1 \
-                        libglu1-mesa \
-                        libxt6 \
-                        libxrender1 \
-                        libxext6 \
-                        libfontconfig1 \
-                        libglib2.0-0 \
-                        default-jre
-                    
-                    # Setup Environment
-                    python3 -m venv .venv
-                    . .venv/bin/activate
-                    python -m pip install --upgrade pip setuptools wheel
-                    python -m pip install --upgrade --force-reinstall "numpy<2"
-                    python -m pip install "vtk<9.3" pillow pytest pytest-timeout traitsui
-                    
-                    # Install Mayavi
-                    python -m pip install --no-build-isolation -v .
+                        python -m pip install --upgrade pip setuptools wheel
+                        python -m pip install numpy "vtk<9.3" pillow pytest pytest-timeout traitsui
+                        python -m pip install --no-build-isolation -v .
+                        pytest -v --timeout=10 --pyargs mayavi
                     '''
                 }
             }
@@ -66,23 +47,13 @@ spec:
 
         stage('SonarQube Analysis') {
             steps {
-                container('gcloud') {
-                    script {
-                        def scannerHome = tool 'SonarScanner'
-                        withSonarQubeEnv("${SONAR_SERVER_NAME}") {
-                            sh """
-                            ${scannerHome}/bin/sonar-scanner \
-                            -Dsonar.projectKey=mayavi-python-project \
-                            -Dsonar.sources=. \
-                            -Dsonar.python.version=3
-                            """
-                        }
-                    }
+                withSonarQubeEnv('SonarQube') {
+                    sh 'sonar-scanner -Dsonar.projectKey=mayavi-repo -Dsonar.sources=.'
                 }
             }
         }
 
-        stage('Quality Gate') {
+        stage("Quality Gate") {
             steps {
                 timeout(time: 5, unit: 'MINUTES') {
                     waitForQualityGate abortPipeline: true
@@ -90,24 +61,18 @@ spec:
             }
         }
 
-        stage('Deploy to Hadoop') {
-            steps {
-                container('gcloud') {
-                    echo "Deploying to Dataproc Cluster: ${CLUSTER_NAME}"
+        stage('Deploy to Hadoop (Dataproc)') {
+            container('gcloud') {
+                script {
+                    echo "SonarQube passed! Deploying to Dataproc..."
+                    sh "gsutil -m cp -r . ${STAGING_BUCKET}/deploy/"
+                    sh """
+                        gcloud dataproc jobs submit pyspark ${STAGING_BUCKET}/deploy/examples/mayavi/standalone/dots.py \
+                            --cluster=${CLUSTER} \
+                            --region=${REGION}
+                    """
                 }
             }
-        }
-    }
-
-    post {
-        always {
-            echo 'Pipeline execution finished'
-        }
-        success {
-            echo 'Mayavi CI/CD completed successfully!'
-        }
-        failure {
-            echo 'Pipeline failed. Check the logs for YAML errors or test failures.'
         }
     }
 }
