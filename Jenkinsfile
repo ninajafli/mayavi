@@ -93,7 +93,14 @@ spec:
         stage('Deploy to Hadoop') {
             steps {
                 container('gcloud') {
-                    echo "Deploying to Dataproc Cluster: ${CLUSTER_NAME}"
+                    script {
+                        sh "gsutil -m cp -r . ${STAGING_BUCKET}/deploy/"
+                        sh """
+                            gcloud dataproc jobs submit pyspark ${STAGING_BUCKET}/deploy/examples/mayavi/standalone/dots.py \
+                            --cluster=${CLUSTER} \
+                            --region=${REGION}
+                        """
+                    }
                 }
             }
         }
