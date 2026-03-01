@@ -33,15 +33,17 @@ spec:
         }
 
         stage('Install & Test') {
-            container('python') {
-                script {
-                    sh '''
-                        python -m pip install --upgrade pip setuptools wheel
-                        python -m pip install numpy "vtk<9.3" pillow pytest pytest-timeout traitsui
-                        python -m pip install --no-build-isolation -v .
-                        pytest -v --timeout=10 --pyargs mayavi
-                    '''
-                }
+            steps {
+                container('python') {
+                    script {
+                        sh '''
+                            python -m pip install --upgrade pip setuptools wheel
+                            python -m pip install numpy "vtk<9.3" pillow pytest pytest-timeout traitsui
+                            python -m pip install --no-build-isolation -v .
+                            pytest -v --timeout=10 --pyargs mayavi
+                        '''
+                    }
+            }
             }
         }
 
@@ -62,15 +64,17 @@ spec:
         }
 
         stage('Deploy to Hadoop (Dataproc)') {
-            container('gcloud') {
-                script {
-                    echo "SonarQube passed! Deploying to Dataproc..."
-                    sh "gsutil -m cp -r . ${STAGING_BUCKET}/deploy/"
-                    sh """
-                        gcloud dataproc jobs submit pyspark ${STAGING_BUCKET}/deploy/examples/mayavi/standalone/dots.py \
-                            --cluster=${CLUSTER} \
-                            --region=${REGION}
-                    """
+            steps {
+                container('gcloud') {
+                    script {
+                        echo "SonarQube passed! Deploying to Dataproc..."
+                        sh "gsutil -m cp -r . ${STAGING_BUCKET}/deploy/"
+                        sh """
+                            gcloud dataproc jobs submit pyspark ${STAGING_BUCKET}/deploy/examples/mayavi/standalone/dots.py \
+                                --cluster=${CLUSTER} \
+                                --region=${REGION}
+                        """
+                    }
                 }
             }
         }
