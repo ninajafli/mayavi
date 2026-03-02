@@ -94,9 +94,9 @@ spec:
             steps {
                 container('gcloud') {
                     script {
-                        sh "gsutil -m cp -r . ${STAGING_BUCKET}/deploy/"
+                        sh "gsutil -m cp -r . gs://${STAGING_BUCKET}/deploy/"
                         sh """
-                            gcloud dataproc jobs submit pyspark gs://${STAGING_BUCKET}/deploy/examples/mayavi/standalone.py \
+                            gcloud dataproc jobs submit pyspark ${STAGING_BUCKET}/deploy/examples/mayavi/standalone.py \
                                 --cluster=${CLUSTER_NAME} \
                                 --region=${REGION}
                         """
