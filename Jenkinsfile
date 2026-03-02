@@ -96,9 +96,9 @@ spec:
                     script {
                         sh "gsutil -m cp -r . ${STAGING_BUCKET}/deploy/"
                         sh """
-                            gcloud dataproc jobs submit pyspark ${STAGING_BUCKET}/deploy/examples/mayavi/standalone/dots.py \
-                            --cluster=${CLUSTER} \
-                            --region=${REGION}
+                            gcloud dataproc jobs submit pyspark gs://${STAGING_BUCKET}/deploy/examples/mayavi/standalone.py \
+                                --cluster=${CLUSTER_NAME} \
+                                --region=${REGION}
                         """
                     }
                 }
