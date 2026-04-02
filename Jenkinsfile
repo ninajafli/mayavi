@@ -72,8 +72,12 @@ spec:
                     gsutil -m rm -r "gs://${STAGING_BUCKET}/results/" 2>/dev/null || true
 
                     gsutil cp mapper.py reducer.py "gs://${STAGING_BUCKET}/deploy/"
-                    find . -name '*.py' -not -name 'mapper.py' -not -name 'reducer.py' \
-                        | gsutil -m cp -I "gs://${STAGING_BUCKET}/deploy/input/"
+
+                    rm -rf .git .venv __pycache__ .scannerwork 2>/dev/null || true
+                    find . -name '*.pyc' -delete 2>/dev/null || true
+                    rm -f mapper.py reducer.py
+
+                    gsutil -m cp -r . "gs://${STAGING_BUCKET}/deploy/input/"
 
                     # Clean up old HDFS directories from previous runs
                     gcloud dataproc jobs submit hadoop \
