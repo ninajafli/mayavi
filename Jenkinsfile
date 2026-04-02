@@ -113,7 +113,7 @@ spec:
                     echo "==========================================="
                     echo "  Hadoop MapReduce Job Results"
                     echo "==========================================="
-                    gsutil cat "gs://${STAGING_BUCKET}/results/line-counts/part-00000"
+                    gsutil cat "gs://${STAGING_BUCKET}/results/line-counts/part-*"
                     echo "==========================================="
                     echo "Results saved to: gs://${STAGING_BUCKET}/results/line-counts/"
                     '''
