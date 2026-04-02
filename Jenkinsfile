@@ -75,6 +75,15 @@ spec:
                     find . -name '*.py' -not -name 'mapper.py' -not -name 'reducer.py' \
                         | gsutil -m cp -I "gs://${STAGING_BUCKET}/deploy/input/"
 
+                    # Clean up old HDFS directories from previous runs
+                    gcloud dataproc jobs submit hadoop \
+                        --cluster="${CLUSTER_NAME}" \
+                        --region="${REGION}" \
+                        --project="${PROJECT_ID}" \
+                        --class=org.apache.hadoop.fs.FsShell \
+                        -- \
+                        -rm -r -f /tmp/mr-input /tmp/mr-output || true
+
                     # Copy input files from GCS into HDFS for data-local reads
                     gcloud dataproc jobs submit hadoop \
                         --cluster="${CLUSTER_NAME}" \
