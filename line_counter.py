@@ -1,16 +1,3 @@
-"""
-PySpark MapReduce job that counts the total number of lines in each file
-of the Mayavi repository.
-
-Output format:
-    "filename": number_of_lines
-
-Results are printed to stdout and saved to a GCS output path.
-
-Usage:
-    spark-submit line_counter.py <input_path> <output_path>
-"""
-
 from pyspark.sql import SparkSession
 import sys
 

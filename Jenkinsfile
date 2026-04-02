@@ -75,12 +75,17 @@ spec:
                     gsutil -m rm -r "gs://${STAGING_BUCKET}/results/" 2>/dev/null || true
                     gsutil -m cp -r . "gs://${STAGING_BUCKET}/deploy/"
 
-                    gcloud dataproc jobs submit pyspark \
-                        "gs://${STAGING_BUCKET}/deploy/line_counter.py" \
+                    gcloud dataproc jobs submit hadoop \
                         --cluster="${CLUSTER_NAME}" \
                         --region="${REGION}" \
                         --project="${PROJECT_ID}" \
-                        -- "gs://${STAGING_BUCKET}/deploy/" "gs://${STAGING_BUCKET}/results/line-counts"
+                        --jar=file:///usr/lib/hadoop/hadoop-streaming.jar \
+                        -- \
+                        -files "gs://${STAGING_BUCKET}/deploy/mapper.py,gs://${STAGING_BUCKET}/deploy/reducer.py" \
+                        -mapper "python3 mapper.py" \
+                        -reducer "python3 reducer.py" \
+                        -input "gs://${STAGING_BUCKET}/deploy/" \
+                        -output "gs://${STAGING_BUCKET}/results/line-counts"
 
                     echo "==========================================="
                     echo "  Hadoop MapReduce Job Results"
