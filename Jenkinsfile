@@ -5,6 +5,7 @@ pipeline {
 apiVersion: v1
 kind: Pod
 spec:
+  serviceAccountName: ci-cd-admin
   containers:
   - name: gcloud
     image: google/cloud-sdk:slim
@@ -15,50 +16,21 @@ spec:
     }
 
     environment {
-        // Project Specifics
         PROJECT_ID         = "niyamaddin"
-        REGION             = "us-central1"
+        REGION             = "us-east4"
         CLUSTER_NAME       = "automation-cluster"
         STAGING_BUCKET     = "niyamaddin-dataproc-staging"
-        
-        // SonarQube Config
-        SONAR_SERVER_NAME  = "SonarQube" 
-        
-        // Python/Mayavi Config
-        PYTHONUNBUFFERED   = '1'
-        ETS_TOOLKIT        = 'null'
-        VTK_PARSER_VERBOSE = 'true'
+        SONAR_SERVER_NAME  = "SonarQube"
     }
 
     stages {
-        stage('Install & Test') {
+        stage('Setup') {
             steps {
                 container('gcloud') {
                     sh '''
                     set -eux
-                    # Install build dependencies
-                    apt-get update
-                    apt-get install -y \
-                        python3-venv \
-                        zip \
-                        libgl1 \
-                        libglu1-mesa \
-                        libxt6 \
-                        libxrender1 \
-                        libxext6 \
-                        libfontconfig1 \
-                        libglib2.0-0 \
-                        default-jre
-                    
-                    # Setup Environment
-                    python3 -m venv .venv
-                    . .venv/bin/activate
-                    python -m pip install --upgrade pip setuptools wheel
-                    python -m pip install --upgrade --force-reinstall "numpy<2"
-                    python -m pip install "vtk<9.3" pillow pytest pytest-timeout traitsui
-                    
-                    # Install Mayavi
-                    python -m pip install --no-build-isolation -v .
+                    apt-get update && apt-get install -y default-jre
+                    gcloud config set project ${PROJECT_ID}
                     '''
                 }
             }
@@ -90,17 +62,33 @@ spec:
             }
         }
 
-        stage('Deploy to Hadoop') {
+        stage('Run Hadoop Job') {
             steps {
                 container('gcloud') {
-                    script {
-                        sh "gsutil -m cp -r . gs://${STAGING_BUCKET}/deploy/"
-                        sh """
-                            gcloud dataproc jobs submit pyspark ${STAGING_BUCKET}/deploy/examples/mayavi/standalone.py \
-                                --cluster=${CLUSTER_NAME} \
-                                --region=${REGION}
-                        """
-                    }
+                    sh '''
+                    set -eux
+
+                    rm -rf .git .venv __pycache__ .scannerwork 2>/dev/null || true
+                    find . -name '*.pyc' -delete 2>/dev/null || true
+
+                    gsutil -m rm -r "gs://${STAGING_BUCKET}/deploy/" 2>/dev/null || true
+                    gsutil -m rm -r "gs://${STAGING_BUCKET}/results/" 2>/dev/null || true
+                    gsutil -m cp -r . "gs://${STAGING_BUCKET}/deploy/"
+
+                    gcloud dataproc jobs submit pyspark \
+                        "gs://${STAGING_BUCKET}/deploy/line_counter.py" \
+                        --cluster="${CLUSTER_NAME}" \
+                        --region="${REGION}" \
+                        --project="${PROJECT_ID}" \
+                        -- "gs://${STAGING_BUCKET}/deploy/" "gs://${STAGING_BUCKET}/results/line-counts"
+
+                    echo "==========================================="
+                    echo "  Hadoop MapReduce Job Results"
+                    echo "==========================================="
+                    gsutil cat "gs://${STAGING_BUCKET}/results/line-counts/part-00000"
+                    echo "==========================================="
+                    echo "Results saved to: gs://${STAGING_BUCKET}/results/line-counts/"
+                    '''
                 }
             }
         }
@@ -108,13 +96,13 @@ spec:
 
     post {
         always {
-            echo 'Pipeline execution finished'
+            echo 'Pipeline execution finished.'
         }
         success {
-            echo 'Mayavi CI/CD completed successfully!'
+            echo 'CI/CD Pipeline completed successfully!'
         }
         failure {
-            echo 'Pipeline failed. Check the logs for YAML errors or test failures.'
+            echo 'Pipeline failed. Check the logs for details.'
         }
     }
 }
