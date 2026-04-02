@@ -81,6 +81,7 @@ spec:
                         --project="${PROJECT_ID}" \
                         --jar=file:///usr/lib/hadoop/hadoop-streaming.jar \
                         -- \
+                        -D mapreduce.input.fileinputformat.input.dir.recursive=true \
                         -files "gs://${STAGING_BUCKET}/deploy/mapper.py,gs://${STAGING_BUCKET}/deploy/reducer.py" \
                         -mapper "python3 mapper.py" \
                         -reducer "python3 reducer.py" \
