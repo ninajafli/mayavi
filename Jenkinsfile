@@ -68,13 +68,26 @@ spec:
                     sh '''
                     set -eux
 
-                    rm -rf .git .venv __pycache__ .scannerwork 2>/dev/null || true
-                    find . -name '*.pyc' -delete 2>/dev/null || true
-
                     gsutil -m rm -r "gs://${STAGING_BUCKET}/deploy/" 2>/dev/null || true
                     gsutil -m rm -r "gs://${STAGING_BUCKET}/results/" 2>/dev/null || true
-                    gsutil -m cp -r . "gs://${STAGING_BUCKET}/deploy/"
 
+                    gsutil cp mapper.py reducer.py "gs://${STAGING_BUCKET}/deploy/"
+                    find . -name '*.py' -not -name 'mapper.py' -not -name 'reducer.py' \
+                        | gsutil -m cp -I "gs://${STAGING_BUCKET}/deploy/input/"
+
+                    # Copy input files from GCS into HDFS for data-local reads
+                    gcloud dataproc jobs submit hadoop \
+                        --cluster="${CLUSTER_NAME}" \
+                        --region="${REGION}" \
+                        --project="${PROJECT_ID}" \
+                        --class=org.apache.hadoop.tools.DistCp \
+                        --jars=file:///usr/lib/hadoop-mapreduce/hadoop-distcp.jar \
+                        -- \
+                        -overwrite \
+                        "gs://${STAGING_BUCKET}/deploy/input/" \
+                        "hdfs:///tmp/mr-input/"
+
+                    # Streaming job reads/writes HDFS (local I/O, no GCS overhead)
                     gcloud dataproc jobs submit hadoop \
                         --cluster="${CLUSTER_NAME}" \
                         --region="${REGION}" \
@@ -85,8 +98,19 @@ spec:
                         -files "gs://${STAGING_BUCKET}/deploy/mapper.py,gs://${STAGING_BUCKET}/deploy/reducer.py" \
                         -mapper "python3 mapper.py" \
                         -reducer "python3 reducer.py" \
-                        -input "gs://${STAGING_BUCKET}/deploy/" \
-                        -output "gs://${STAGING_BUCKET}/results/line-counts"
+                        -input "hdfs:///tmp/mr-input/" \
+                        -output "hdfs:///tmp/mr-output/line-counts"
+
+                    # Copy results from HDFS back to GCS for persistent storage
+                    gcloud dataproc jobs submit hadoop \
+                        --cluster="${CLUSTER_NAME}" \
+                        --region="${REGION}" \
+                        --project="${PROJECT_ID}" \
+                        --class=org.apache.hadoop.tools.DistCp \
+                        --jars=file:///usr/lib/hadoop-mapreduce/hadoop-distcp.jar \
+                        -- \
+                        "hdfs:///tmp/mr-output/line-counts/" \
+                        "gs://${STAGING_BUCKET}/results/line-counts/"
 
                     echo "==========================================="
                     echo "  Hadoop MapReduce Job Results"
