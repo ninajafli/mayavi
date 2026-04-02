@@ -81,7 +81,6 @@ spec:
                         --region="${REGION}" \
                         --project="${PROJECT_ID}" \
                         --class=org.apache.hadoop.tools.DistCp \
-                        --jars=file:///usr/lib/hadoop-mapreduce/hadoop-distcp.jar \
                         -- \
                         -overwrite \
                         "gs://${STAGING_BUCKET}/deploy/input/" \
@@ -107,7 +106,6 @@ spec:
                         --region="${REGION}" \
                         --project="${PROJECT_ID}" \
                         --class=org.apache.hadoop.tools.DistCp \
-                        --jars=file:///usr/lib/hadoop-mapreduce/hadoop-distcp.jar \
                         -- \
                         "hdfs:///tmp/mr-output/line-counts/" \
                         "gs://${STAGING_BUCKET}/results/line-counts/"
